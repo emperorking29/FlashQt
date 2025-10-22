@@ -1,6 +1,7 @@
 import sys
 import os
-from PyQt5.QtWidgets import QApplication, QMainWindow, QMessageBox, QDialog, QLabel, QPushButton, QWidget, QVBoxLayout, QHBoxLayout, QFileDialog
+import json
+from PyQt5.QtWidgets import QApplication, QMainWindow, QMessageBox, QInputDialog, QLabel, QPushButton, QWidget, QVBoxLayout, QHBoxLayout, QFileDialog
 from PyQt5.QtGui import QIcon, QFont, QPixmap
 from PyQt5.QtCore import Qt
 
@@ -20,9 +21,7 @@ class MainWindow(QMainWindow):
                                
                 QMainWindow { background: qlineargradient(x1: 0, y1: 1, stop: 0 grey, stop: 1 lightgrey)}
                 QPushButton { padding: 10px;}               
-                               
-                               
-                               
+                                                             
                                """)
 
 
@@ -34,28 +33,23 @@ class MainWindow(QMainWindow):
             #Titlelabel
             titleLabel = QLabel("Welcome to FlashQt", self)
             titleLabel.setFont(QFont("Arial", 20))
-            titleLabel.setGeometry(0, 0, 200, 200)
             titleLabel.setAlignment(Qt.AlignHCenter)
 
             #greetlabel
             greetLabel = QLabel("Open or Create a flashcard collection to begin.", self)
             greetLabel.setFont(QFont("Arial", 12))
-            greetLabel.setGeometry(0, 0, 200, 200)
             greetLabel.setAlignment(Qt.AlignHCenter)
 
             #CreateCollectionbutton
             self.createButton = QPushButton("New Flashcard Collection", self)
-            self.createButton.setGeometry(0, 0, 100, 100)
+            self.createButton.clicked.connect(self.CreateCollection)
 
             #QuitButton
             self.quitButton = QPushButton("Quit", self)
-            self.quitButton.setGeometry(0, 0, 100, 100)
             self.quitButton.clicked.connect(self.Quit)
 
             #BrowseButton
             self.browseButton = QPushButton("Browse", self)
-            self.browseButton.setGeometry(0, 0, 100, 30)
-            self.browseButton.setGeometry(int(self.width()/2-self.browseButton.width()/2), int(self.height()/2-self.browseButton.height()/2), self.browseButton.width(), self.browseButton.height())
             self.browseButton.clicked.connect(self.BrowseFiles)
 
             #Layout
@@ -84,8 +78,51 @@ class MainWindow(QMainWindow):
         else:
             currentDir = str(os.getcwd())
 
-        fName = QFileDialog.getOpenFileName(self, "Open file", currentDir)
-        print(fName[0])
+        fLoc = QFileDialog.getOpenFileName(self, "Open file", currentDir)[0]
+
+        # TODO: Add proper UI
+        print(self.ReadCollection(fLoc)[0]["question"]) 
+
+
+    def CreateCollection(self):
+
+        userData = {}
+        Cards= []
+
+        running = True
+
+        while running:
+            fileName = ""
+            userData["question"] = QInputDialog.getText(self, "Card Collection Creation", "What is your question?")[0]
+            userData["answer"] = QInputDialog.getText(self, "Card Collection Creation", "What is your answer?")[0]
+
+            Cards.append(userData)
+
+            reply = QMessageBox.question(self, "End Creation?", "Do you want to add further cards?")
+
+            if reply == QMessageBox.No:
+                fileName = QInputDialog.getText(self, "Card Collection Creation", "How should the Collection be called?")[0]
+                running = False
+            else:
+                pass
+
+
+        # Check if file already exists and abort if yes
+        files = os.listdir(os.getcwd())
+        if fileName + ".json" in files:
+            QMessageBox.critical(self, "Warning", "There is already a file with that name!")
+            return
+        else:
+            with open(fileName + ".json", "w") as f:
+                json.dump(Cards, f, indent=2)
+
+        
+        
+        # TODO: Add proper UI
+        print(self.ReadCollection(fileName + ".json")[0]["question"])
+
+            
+
 
 
     def Quit(self): 
@@ -93,7 +130,22 @@ class MainWindow(QMainWindow):
         
                  
         
-      
+    def ReadCollection(self, fLoc):
+        try: 
+            with open(fLoc, "r") as f:
+                try:
+                    data = json.load(f)
+                except json.decoder.JSONDecodeError:
+                    QMessageBox.critical(self, "Error", "The file type is wrong")
+                    return
+                except UnicodeDecodeError:
+                    QMessageBox.critical(self, "Error", "The file type is wrong")
+                    return             
+        except FileNotFoundError:        
+            QMessageBox.critical(self, "Error", "The file was not found")
+            return
+        
+        return data
 
 
 
